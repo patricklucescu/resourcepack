@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="codezilla",
+    name="utility_belt",
     version="0.1",
     packages=find_packages(),
     description="Basic python functions to connect to databases and other essential stuff.",
