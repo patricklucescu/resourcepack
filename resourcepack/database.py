@@ -6,16 +6,11 @@ import pandas
 import psycopg
 from clickhouse_driver import Client
 
-from .errors.base import (ValidFileError,
-                          FileExtensionError,
-                          DatabaseNameError)
+from .errors.base import DatabaseNameError, FileExtensionError, ValidFileError
 
 
 class Database:
-    def __init__(self,
-                 database_name: str,
-                 credentials_path: str,
-                 database_type: str):
+    def __init__(self, database_name: str, credentials_path: str, database_type: str):
         """
         | Initialize the database class with the database name and location of the config.ini file.
 
@@ -25,8 +20,10 @@ class Database:
         """
 
         # database type can be only clickhouse or postgres
-        if database_type not in ['clickhouse', 'postgresql']:
-            raise ValueError(f"Database type {database_type} is not supported,can be only clickhouse or postgres")
+        if database_type not in ["clickhouse", "postgresql"]:
+            raise ValueError(
+                f"Database type {database_type} is not supported,can be only clickhouse or postgres"
+            )
 
         # Check if file exists
         if not os.path.exists(credentials_path):
@@ -34,12 +31,14 @@ class Database:
 
         # check file ends with .ini
         _, file_extension = os.path.splitext(credentials_path)
-        if file_extension.lower() != '.ini':
+        if file_extension.lower() != ".ini":
             raise FileExtensionError("Please ensure your config file ends with .ini.")
 
         # ensure the database type is included in the database name
         if database_type not in database_name:
-            raise ValueError("Please ensure the database type is part of the database name")
+            raise ValueError(
+                "Please ensure the database type is part of the database name"
+            )
 
         dbconfig = configparser.ConfigParser()
         dbconfig.read(credentials_path)
@@ -52,23 +51,27 @@ class Database:
             self._database_type = database_type
 
         else:
-            raise DatabaseNameError(f"Database name {database_name} is not in the config file.")
+            raise DatabaseNameError(
+                f"Database name {database_name} is not in the config file."
+            )
 
-    def connect_database(self, use_numpy: bool = False) -> clickhouse_driver.Client | psycopg.Connection:
+    def connect_database(
+        self, use_numpy: bool = False
+    ) -> clickhouse_driver.Client | psycopg.Connection:
         """
         | Function to connect to the database
 
         :param: use_numpy: If numpy setting should be used for clickhouse connection
         :return: The Connection to the database
         """
-        if self._database_type == 'clickhouse':
+        if self._database_type == "clickhouse":
             return Client(
                 host=self._host,
                 user=self._user,
                 password=self._password,
-                settings={"use_numpy": use_numpy}
+                settings={"use_numpy": use_numpy},
             )
-        elif self._database_type == 'postgresql':
+        elif self._database_type == "postgresql":
             return psycopg.connect(
                 dbname=self._db_name,
                 host=self._host,
@@ -83,7 +86,7 @@ class Database:
 
         :param query: Query to be executed
         """
-        if self._database_type == 'clickhouse':
+        if self._database_type == "clickhouse":
             with self.connect_database() as db_con:
                 db_con.execute(query)
         else:
@@ -97,7 +100,7 @@ class Database:
         :param query: Desired query to be executed and retrieved from database.
         :return: DataFrame containing the desired output
         """
-        if self._database_type == 'clickhouse':
+        if self._database_type == "clickhouse":
             with self.connect_database() as db_con:
                 return db_con.query_dataframe(query)
         else:
@@ -106,11 +109,9 @@ class Database:
                 columns = [desc[0] for desc in cursor.description]
                 return pandas.DataFrame(cursor.fetchall(), columns=columns)
 
-    def save_to_database(self,
-                         data: pandas.DataFrame,
-                         table: str,
-                         schema: str,
-                         replace: bool = False):
+    def save_to_database(
+        self, data: pandas.DataFrame, table: str, schema: str, replace: bool = False
+    ):
         """
         | Save desired DataFrame to the database.
 
@@ -120,9 +121,11 @@ class Database:
         :param replace: If True remove data and then add new data
         """
         if not isinstance(data, pandas.DataFrame):
-            raise ValueError(f"Data type {type(data)} not supported, only pandas.DataFrame.")
+            raise ValueError(
+                f"Data type {type(data)} not supported, only pandas.DataFrame."
+            )
 
-        if self._database_type == 'clickhouse':
+        if self._database_type == "clickhouse":
             with self.connect_database(use_numpy=True) as db_con:
                 if replace:
                     db_con.execute(f"TRUNCATE TABLE IF EXISTS {schema}.{table}")
@@ -138,9 +141,10 @@ class Database:
                 return
             cursor = self.connect_database().cursor()
             if replace:
-                cursor.execute(f"TRUNCATE {schema}.{table}")  # delete content of the table
+                cursor.execute(
+                    f"TRUNCATE {schema}.{table}"
+                )  # delete content of the table
             with cursor.copy(f"COPY {schema}.{table} ({columns}) FROM STDIN") as copy:
                 # superfast copy content to database
                 for record in records:
                     copy.write_row(record)
-

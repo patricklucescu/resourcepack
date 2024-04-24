@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="resourcepack",
-    version="0.1.2",
+    version="0.1.3",
     packages=find_packages(),
     description="Basic python functions to connect to databases and other essential stuff.",
     long_description=open("README.md").read(),
