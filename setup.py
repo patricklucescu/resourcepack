@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="resourcepack",
-    version="0.1.1",
+    version="0.1.3",
     packages=find_packages(),
     description="Basic python functions to connect to databases and other essential stuff.",
     long_description=open("README.md").read(),
@@ -10,7 +10,7 @@ setup(
     author="Patrick Lucescu",
     author_email="patricklucescu@outlook.com",
     license="MIT",
-    install_requires=["pandas", "clickhouse_driver"],
+    install_requires=["pandas", "clickhouse_driver", "psycopg[binary]"],
     classifiers=[
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: MIT License",
