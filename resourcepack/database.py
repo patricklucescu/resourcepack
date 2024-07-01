@@ -8,9 +8,18 @@ from clickhouse_driver import Client
 
 from .errors.base import DatabaseNameError, FileExtensionError, ValidFileError
 
+CLICKHOUSE = "clickhouse"
+POSTGRESQL = "postgresql"
+SUPPORTED_DATABASES = (CLICKHOUSE, POSTGRESQL)
+
 
 class Database:
-    def __init__(self, database_name: str, credentials_path: str, database_type: str):
+    def __init__(
+        self,
+        database_name: str,
+        credentials_path: str,
+        database_type: str = "clickhouse",
+    ):
         """
         | Initialize the database class with the database name and location of the config.ini file.
 
@@ -19,28 +28,13 @@ class Database:
         :param database_type: Type of database to connect to
         """
 
-        # database type can be only clickhouse or postgres
-        if database_type not in ["clickhouse", "postgresql"]:
-            raise ValueError(
-                f"Database type {database_type} is not supported,can be only clickhouse or postgres"
-            )
+        self._database_name = database_name
+        self._credentials_path = credentials_path
+        self._database_type = database_type
+        self._validate_inputs()
 
-        # Check if file exists
-        if not os.path.exists(credentials_path):
-            raise ValidFileError("Please ensure the path to the config.ini is correct.")
-
-        # check file ends with .ini
-        _, file_extension = os.path.splitext(credentials_path)
-        if file_extension.lower() != ".ini":
-            raise FileExtensionError("Please ensure your config file ends with .ini.")
-
-        # ensure the database type is included in the database name
-        if database_type not in database_name:
-            raise ValueError(
-                "Please ensure the database type is part of the database name"
-            )
-
-        dbconfig = configparser.ConfigParser()
+        # load credentials
+        dbconfig = configparser.ConfigParser(interpolation=None)
         dbconfig.read(credentials_path)
         if database_name in dbconfig.sections():
             self._host = dbconfig[database_name].get("host")
@@ -48,11 +42,37 @@ class Database:
             self._password = dbconfig[database_name].get("password")
             self._port = dbconfig[database_name].get("port")
             self._db_name = dbconfig[database_name].get("db_name")
-            self._database_type = database_type
 
         else:
             raise DatabaseNameError(
                 f"Database name {database_name} is not in the config file."
+            )
+
+    def _validate_inputs(self):
+        """
+        Validates the inputs provided to the Database class.
+        """
+
+        # check database type is supported
+        if self._database_type not in SUPPORTED_DATABASES:
+            raise ValueError(
+                f"Database type '{self._database_type}' is not supported. Supported types are: "
+                f"{', '.join(SUPPORTED_DATABASES)}."
+            )
+
+        # Check if ini file exists
+        if not os.path.exists(self._credentials_path):
+            raise ValidFileError("Please ensure the path to the config.ini is correct.")
+
+        # check file ends with .ini
+        _, file_extension = os.path.splitext(self._credentials_path)
+        if file_extension.lower() != ".ini":
+            raise FileExtensionError("Please ensure your config file ends with .ini.")
+
+        # ensure the database type is included in the database name
+        if self._database_type not in self._database_name:
+            raise ValueError(
+                "Please ensure the database type is part of the database name"
             )
 
     def connect_database(
@@ -90,7 +110,8 @@ class Database:
             with self.connect_database() as db_con:
                 db_con.execute(query)
         else:
-            with self.connect_database().cursor() as cursor:
+            pg_con = self.connect_database()
+            with pg_con.cursor() as cursor:
                 cursor.execute(query)
 
     def read_from_database(self, query: str) -> pandas.DataFrame:
@@ -104,7 +125,8 @@ class Database:
             with self.connect_database() as db_con:
                 return db_con.query_dataframe(query)
         else:
-            with self.connect_database().cursor() as cursor:
+            pg_con = self.connect_database()
+            with pg_con.cursor() as cursor:
                 cursor.execute(query)
                 columns = [desc[0] for desc in cursor.description]
                 return pandas.DataFrame(cursor.fetchall(), columns=columns)
@@ -120,6 +142,7 @@ class Database:
         :param schema: Target schema
         :param replace: If True remove data and then add new data
         """
+
         if not isinstance(data, pandas.DataFrame):
             raise ValueError(
                 f"Data type {type(data)} not supported, only pandas.DataFrame."
@@ -139,7 +162,8 @@ class Database:
             columns = ",".join(list(data.columns))
             if not columns:  # nothing to push
                 return
-            cursor = self.connect_database().cursor()
+            pg_con = self.connect_database()
+            cursor = pg_con.cursor()
             if replace:
                 cursor.execute(
                     f"TRUNCATE {schema}.{table}"

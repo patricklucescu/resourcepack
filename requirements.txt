@@ -1,7 +1,7 @@
 setuptools~=69.2.0
 wheel
 twine
-pandas~=2.2.2
+pandas
 clickhouse_driver
 psycopg[binary]~=3.1.18
 pytest~=8.1.1
