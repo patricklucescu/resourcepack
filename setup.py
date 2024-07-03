@@ -10,7 +10,7 @@ setup(
     author="Patrick Lucescu",
     author_email="patricklucescu@outlook.com",
     license="MIT",
-    install_requires=["pandas", "clickhouse_driver", "psycopg[binary]"],
+    install_requires=["pandas", "clickhouse_driver", "psycopg[binary]", "gitpython"],
     classifiers=[
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: MIT License",
