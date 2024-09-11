@@ -89,6 +89,7 @@ class Database:
                 host=self._host,
                 user=self._user,
                 password=self._password,
+                port = self._port,
                 settings={"use_numpy": use_numpy},
             )
         elif self._database_type == "postgresql":
